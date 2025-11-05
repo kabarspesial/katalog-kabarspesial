@@ -285,6 +285,13 @@
         </h2>
 
         <div
+          id="categories"
+          class="flex flex-wrap gap-2 items-center justify-center mb-6"
+        >
+          <!-- render category disini -->
+        </div>
+
+        <div
           id="themes"
           class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-10"
         >
@@ -584,16 +591,31 @@
       const baseUrl = "https://kabarspesial.com";
       const phoneNumber = "628xxxxxx";
 
+      const categoryUrl = baseUrl + "/seller/api/v1/categories";
       let nextPageUrl = baseUrl + "/seller/api/v1/products/websites?limit=12"; // halaman awal
       let isLoading = false;
+      let currentCategoryId = null;
 
-      async function loadThemes() {
-        if (!nextPageUrl || isLoading) return;
+      async function loadThemes(reset = false) {
         isLoading = true;
 
         const container = document.getElementById("themes");
         const btn = document.getElementById("loadMore");
         btn.textContent = "Loading...";
+
+        if (reset) {
+          container.innerHTML = "";
+          nextPageUrl = `${baseUrl}/seller/api/v1/products/websites?limit=12`;
+          if (currentCategoryId) {
+            nextPageUrl += `&categoryId=${currentCategoryId}`;
+          }
+        }
+
+        if (!nextPageUrl) {
+          isLoading = false;
+          btn.style.display = "none";
+          return;
+        }
 
         try {
           const response = await fetch(nextPageUrl);
@@ -604,7 +626,7 @@
 
           // Simpan URL untuk halaman berikutnya
           nextPageUrl = result.data?.next_page_url || null;
-          nextPageUrl = nextPageUrl.replace("http:", "https:");
+          if (nextPageUrl) nextPageUrl = nextPageUrl.replace("http:", "https:");
 
           // Render setiap tema
           themes.forEach((theme) => {
@@ -641,14 +663,50 @@
           alert("Terjadi kesalahan saat memuat data.");
         } finally {
           isLoading = false;
+          reset = false;
           btn.textContent = "Load More Themes";
         }
       }
 
       // Event listener tombol
-      document.getElementById("loadMore").addEventListener("click", loadThemes);
+      document
+        .getElementById("loadMore")
+        .addEventListener("click", () => loadThemes());
+
+      // Fetch categories
+      async function loadCategories() {
+        const categoriesContainer = document.getElementById("categories");
+
+        try {
+          const response = await fetch(categoryUrl);
+          if (!response.ok) throw new Error("Gagal mengambil data kategori");
+
+          const result = await response.json();
+          const categories = result.data || [];
+
+          categories.forEach((category) => {
+            const buttonCategory = document.createElement("button");
+            buttonCategory.className =
+              "btn text-sm sm:text-base inline-flex items-center text-center justify-center rounded h-8 px-2 bg-secondary hover:bg-secondary m-1 hover:cursor-pointer";
+            buttonCategory.textContent = category.name;
+
+            // Saat tombol diklik, set categoryId dan muat ulang tema
+            buttonCategory.addEventListener("click", () => {
+              currentCategoryId = category.id;
+              isLoading = false;
+              loadThemes(true);
+              console.log("click");
+            });
+
+            categoriesContainer.appendChild(buttonCategory);
+          });
+        } catch (error) {
+          console.error(error);
+        }
+      }
 
       // Load pertama kali
+      loadCategories();
       loadThemes();
     </script>
   </body>
